@@ -480,7 +480,7 @@
        <if test="ownerLikeIgnoreCase != null">
         and lower(RES.OWNER_) like #{ownerLikeIgnoreCase}${wildcardEscapeClause}
       </if>
-      <if test="unassigned">
+      <if test="unassigned &amp;&amp; !includeAssigned">
         and RES.ASSIGNEE_ IS NULL
       </if>
       <if test="taskParentTaskId != null">
@@ -599,7 +599,9 @@
         and RES.PARENT_TASK_ID_ IS NULL
       </if>
       <if test="!bothCandidateAndAssigned &amp;&amp; (candidateUser != null || candidateGroups != null)">
-        and RES.ASSIGNEE_ is null
+        <if test="!includeAssigned">
+          and RES.ASSIGNEE_ is null
+        </if>
         and I.TYPE_ = 'candidate'
         and
         (
@@ -727,14 +729,21 @@
           <!-- if dbIdentityUsed set true in process engine configuration -->
           <if test="userIdForCandidateAndAssignee != null">
             <if test="candidateGroups == null">
-              and (RES.ASSIGNEE_ = #{userIdForCandidateAndAssignee} or (RES.ASSIGNEE_ is null and (I.USER_ID_ = #{userIdForCandidateAndAssignee} ) ) )
+              and (RES.ASSIGNEE_ = #{userIdForCandidateAndAssignee} or (
+                <if test="!includeAssigned">
+                  RES.ASSIGNEE_ is null and
+                </if>
+                (I.USER_ID_ = #{userIdForCandidateAndAssignee} ) ) )
             </if>
           </if>
           <!-- if dbIdentityUsed set false in process engine configuration of using custom session factory of GroupIdentityManager -->
           <if test="candidateGroups != null">
             and (RES.ASSIGNEE_ = #{userIdForCandidateAndAssignee}
-            or (RES.ASSIGNEE_ is null
-            and I.TYPE_ = 'candidate' and (I.USER_ID_ = #{userIdForCandidateAndAssignee}
+            or (
+             <if test="!includeAssigned">
+              RES.ASSIGNEE_ is null and
+            </if>
+            I.TYPE_ = 'candidate' and (I.USER_ID_ = #{userIdForCandidateAndAssignee}
             <if test="candidateGroups.size() &gt; 0">
               or I.GROUP_ID_ IN
               <foreach item="group" index="index" collection="candidateGroups"
@@ -818,7 +827,7 @@
             <if test="orQueryObject.ownerLikeIgnoreCase != null">
               or RES.OWNER_ like #{orQueryObject.ownerLikeIgnoreCase}${wildcardEscapeClause}
             </if>
-            <if test="orQueryObject.unassigned">
+            <if test="orQueryObject.unassigned &amp;&amp; !orQueryObject.includeAssigned">
               or RES.ASSIGNEE_ IS NULL
             </if>
             <if test="orQueryObject.taskParentTaskId != null">
@@ -935,8 +944,11 @@
             </if>
 
             <if test="!orQueryObject.bothCandidateAndAssigned &amp;&amp; (orQueryObject.candidateUser != null || orQueryObject.candidateGroups != null)">
-              or (RES.ASSIGNEE_ is null
-              and I_OR${orIndex}.TYPE_ = 'candidate'
+              or (
+              <if test="!includeAssigned">
+                RES.ASSIGNEE_ is null and
+              </if>  
+              I_OR${orIndex}.TYPE_ = 'candidate'
               and
               (
                 <if test="orQueryObject.candidateUser != null">
@@ -1071,14 +1083,21 @@
                 <!-- if dbIdentityUsed set true in process engine configuration -->
                 <if test="orQueryObject.userIdForCandidateAndAssignee != null">
                   <if test="orQueryObject.candidateGroups == null ">
-                    or (RES.ASSIGNEE_ = #{orQueryObject.userIdForCandidateAndAssignee} or (RES.ASSIGNEE_ is null and (I_OR${orIndex}.USER_ID_ = #{orQueryObject.userIdForCandidateAndAssignee} ) ) )
+                    or (RES.ASSIGNEE_ = #{orQueryObject.userIdForCandidateAndAssignee} or (
+                      <if test="!includeAssigned">
+                        RES.ASSIGNEE_ is null and
+                      </if>
+                      (I_OR${orIndex}.USER_ID_ = #{orQueryObject.userIdForCandidateAndAssignee} ) ) )
                   </if>
                 </if>
                 <!-- if dbIdentityUsed set false in process engine configuration of using custom session factory of GroupIdentityManager -->
                 <if test="orQueryObject.candidateGroups != null">
                   or (RES.ASSIGNEE_ = #{orQueryObject.userIdForCandidateAndAssignee}
-                  or (RES.ASSIGNEE_ is null
-                  and I_OR${orIndex}.TYPE_ = 'candidate' and (I_OR${orIndex}.USER_ID_ = #{orQueryObject.userIdForCandidateAndAssignee}
+                  or (
+                  <if test="!includeAssigned">
+                    RES.ASSIGNEE_ is null and
+                  </if>  
+                  I_OR${orIndex}.TYPE_ = 'candidate' and (I_OR${orIndex}.USER_ID_ = #{orQueryObject.userIdForCandidateAndAssignee}
                   <if test="orQueryObject.candidateGroups.size() &gt; 0">
                     or I_OR${orIndex}.GROUP_ID_ IN
                     <foreach item="group" index="index" collection="orQueryObject.candidateGroups"

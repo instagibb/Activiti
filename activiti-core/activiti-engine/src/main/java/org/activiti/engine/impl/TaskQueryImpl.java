@@ -115,7 +115,8 @@ public class TaskQueryImpl extends AbstractVariableQueryImpl<TaskQuery, Task> im
   protected boolean orActive;
   protected List<TaskQueryImpl> orQueryObjects = new ArrayList<TaskQueryImpl>();
   protected TaskQueryImpl currentOrQueryObject = null;
-  
+  protected boolean includeAssigned;
+
   public TaskQueryImpl() {
   }
 
@@ -1190,7 +1191,16 @@ public class TaskQueryImpl extends AbstractVariableQueryImpl<TaskQuery, Task> im
     this.includeProcessVariables = true;
     return this;
   }
-  
+
+  public TaskQuery taskIncludeAssigned() {
+    if(orActive) {
+      currentOrQueryObject.includeAssigned = true;
+    } else {
+      this.includeAssigned = true;
+    }
+    return this;
+  }
+
   public TaskQuery limitTaskVariables(Integer taskVariablesLimit) {
     this.taskVariablesLimit = taskVariablesLimit;
     return this;
@@ -1668,4 +1678,9 @@ public class TaskQueryImpl extends AbstractVariableQueryImpl<TaskQuery, Task> im
   public boolean isOrActive() {
     return orActive;
   }
+
+  public boolean isIncludeAssigned() {
+    return includeAssigned;
+  }
+
 }
