@@ -1192,7 +1192,7 @@ public class TaskQueryImpl extends AbstractVariableQueryImpl<TaskQuery, Task> im
     return this;
   }
 
-  public TaskQuery taskIncludeAssigned() {
+  public TaskQuery includeAssignedTasks() {
     if(orActive) {
       currentOrQueryObject.includeAssigned = true;
     } else {
@@ -1679,7 +1679,7 @@ public class TaskQueryImpl extends AbstractVariableQueryImpl<TaskQuery, Task> im
     return orActive;
   }
 
-  public boolean isIncludeAssigned() {
+  public boolean isIncludeAssignedTasks() {
     return includeAssigned;
   }
 

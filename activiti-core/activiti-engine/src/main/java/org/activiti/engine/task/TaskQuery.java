@@ -24,7 +24,7 @@ import java.util.List;
 public interface TaskQuery extends TaskInfoQuery<TaskQuery, Task> {
 
   /** Only select tasks which are assigned. */
-  TaskQuery taskIncludeAssigned();
+  TaskQuery includeAssignedTasks();
 
   /** Only select tasks which don't have an assignee. */
   TaskQuery taskUnassigned();

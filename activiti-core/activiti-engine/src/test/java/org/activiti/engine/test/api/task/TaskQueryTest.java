@@ -755,7 +755,7 @@ public void tearDown() throws Exception {
     assertEquals(3, query.list().size());
 
     // Include assigned test
-    query = taskService.createTaskQuery().taskCandidateUser(FOZZIE, FOZZIESGROUPS).taskIncludeAssigned();
+    query = taskService.createTaskQuery().taskCandidateUser(FOZZIE, FOZZIESGROUPS).includeAssignedTasks();
     assertEquals(4, query.count());
     assertEquals(4, query.list().size());
 
@@ -817,7 +817,7 @@ public void tearDown() throws Exception {
     }
 
     // test including assigned tasks
-    query = taskService.createTaskQuery().taskCandidateGroup("management").taskIncludeAssigned();
+    query = taskService.createTaskQuery().taskCandidateGroup("management").includeAssignedTasks();
     assertEquals(4, query.count());
     assertEquals(4, query.list().size());
 
@@ -827,7 +827,7 @@ public void tearDown() throws Exception {
     assertEquals(3, query.list().size());
 
     // test including assigned tasks
-    query = taskService.createTaskQuery().taskCandidateGroup("accountancy").taskIncludeAssigned();
+    query = taskService.createTaskQuery().taskCandidateGroup("accountancy").includeAssignedTasks();
     assertEquals(4, query.count());
     assertEquals(4, query.list().size());
 
@@ -837,7 +837,7 @@ public void tearDown() throws Exception {
     assertEquals(0, query.list().size());
 
     // test including assigned tasks
-    query = taskService.createTaskQuery().taskCandidateGroup("sales").taskIncludeAssigned();
+    query = taskService.createTaskQuery().taskCandidateGroup("sales").includeAssignedTasks();
     assertEquals(0, query.count());
     assertEquals(0, query.list().size());
   }
@@ -880,7 +880,7 @@ public void tearDown() throws Exception {
     assertEquals(4, query.list().size());
 
     // Test with assigned (Rowlf is in the same group as fozzie)
-    query = taskService.createTaskQuery().taskCandidateOrAssigned(ROWLF,ROWLFSGROUPS).taskIncludeAssigned();
+    query = taskService.createTaskQuery().taskCandidateOrAssigned(ROWLF,ROWLFSGROUPS).includeAssignedTasks();
     assertEquals(4, query.count());
     assertEquals(4, query.list().size());
 
@@ -1076,7 +1076,7 @@ public void tearDown() throws Exception {
     }
 
     // test including assigned tasks
-    query = taskService.createTaskQuery().taskCandidateGroupIn(groups).taskIncludeAssigned();
+    query = taskService.createTaskQuery().taskCandidateGroupIn(groups).includeAssignedTasks();
     assertEquals(6, query.count());
     assertEquals(6, query.list().size());
 
@@ -1100,7 +1100,7 @@ public void tearDown() throws Exception {
     assertEquals(5, query.list().size());
 
     // test including assigned tasks
-    query = taskService.createTaskQuery().taskCandidateGroupIn(groups).taskIncludeAssigned();
+    query = taskService.createTaskQuery().taskCandidateGroupIn(groups).includeAssignedTasks();
     assertEquals(6, query.count());
     assertEquals(6, query.list().size());
   }
