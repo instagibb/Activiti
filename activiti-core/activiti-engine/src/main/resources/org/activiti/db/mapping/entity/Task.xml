@@ -961,7 +961,7 @@
             <if test="!orQueryObject.bothCandidateAndAssigned &amp;&amp; (orQueryObject.candidateUser != null || orQueryObject.candidateGroups != null)">
               or (
                 <choose>
-                    <when test="includeAssigned">
+                    <when test="orQueryObject.includeAssigned">
                         (RES.ASSIGNEE_ LIKE '%' OR RES.ASSIGNEE_ is null) and
                     </when>
                     <otherwise>
@@ -1105,7 +1105,7 @@
                   <if test="orQueryObject.candidateGroups == null ">
                     or (RES.ASSIGNEE_ = #{orQueryObject.userIdForCandidateAndAssignee} or (
                     <choose>
-                        <when test="includeAssigned">
+                        <when test="orQueryObject.includeAssigned">
                             (RES.ASSIGNEE_ LIKE '%' OR RES.ASSIGNEE_ is null) and
                         </when>
                         <otherwise>
@@ -1120,7 +1120,7 @@
                   or (RES.ASSIGNEE_ = #{orQueryObject.userIdForCandidateAndAssignee}
                   or (
                     <choose>
-                        <when test="includeAssigned">
+                        <when test="orQueryObject.includeAssigned">
                             (RES.ASSIGNEE_ LIKE '%' OR RES.ASSIGNEE_ is null) and
                         </when>
                         <otherwise>
