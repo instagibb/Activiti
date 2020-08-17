@@ -599,9 +599,14 @@
         and RES.PARENT_TASK_ID_ IS NULL
       </if>
       <if test="!bothCandidateAndAssigned &amp;&amp; (candidateUser != null || candidateGroups != null)">
-        <if test="!includeAssigned">
-          and RES.ASSIGNEE_ is null
-        </if>
+        <choose>
+            <when test="includeAssigned">
+                and (RES.ASSIGNEE_ LIKE '%' OR RES.ASSIGNEE_ is null)
+            </when>
+            <otherwise>
+                and RES.ASSIGNEE_ is null
+            </otherwise>
+        </choose>
         and I.TYPE_ = 'candidate'
         and
         (
