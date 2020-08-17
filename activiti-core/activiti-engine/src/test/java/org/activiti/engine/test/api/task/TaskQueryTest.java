@@ -1,9 +1,9 @@
 /* Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.activiti.api.runtime.shared.identity.UserGroupManager;
 import org.activiti.engine.ActivitiException;
 import org.activiti.engine.ActivitiIllegalArgumentException;
 import org.activiti.engine.impl.cfg.ProcessEngineConfigurationImpl;
@@ -35,11 +36,9 @@ import org.activiti.engine.task.IdentityLinkType;
 import org.activiti.engine.task.Task;
 import org.activiti.engine.task.TaskQuery;
 import org.activiti.engine.test.Deployment;
+import org.mockito.Mockito;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
-
-import org.activiti.api.runtime.shared.identity.UserGroupManager;
-import org.mockito.Mockito;
 
 /**
 
@@ -62,16 +61,21 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
   private static final String SCOOTER = "scooter";
   private static final List<String> SCOOTERSGROUPS = null;
 
+  private static final String ROWLF = "rowlf";
+  private static final List<String> ROWLFSGROUPS = Arrays.asList("management");
+
   private UserGroupManager userGroupManager = Mockito.mock(UserGroupManager.class);
 
 
-  public void setUp() throws Exception {
+  @Override
+public void setUp() throws Exception {
     ProcessEngineConfigurationImpl engineConfiguration = (ProcessEngineConfigurationImpl)cachedProcessEngine.getProcessEngineConfiguration();
     engineConfiguration.setUserGroupManager(userGroupManager);
     taskIds = generateTestTasks();
   }
 
-  public void tearDown() throws Exception {
+  @Override
+public void tearDown() throws Exception {
 
     taskService.deleteTasks(taskIds, true);
   }
@@ -86,8 +90,8 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
 
   public void testQueryNoCriteria() {
     TaskQuery query = taskService.createTaskQuery();
-    assertEquals(12, query.count());
-    assertEquals(12, query.list().size());
+    assertEquals(13, query.count());
+    assertEquals(13, query.list().size());
     try {
       query.singleResult();
       fail("expected exception");
@@ -475,10 +479,10 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
     assertEquals(0, query.count());
 
     query = taskService.createTaskQuery().taskMinPriority(50);
-    assertEquals(3, query.list().size());
+    assertEquals(4, query.list().size());
 
     query = taskService.createTaskQuery().taskMinPriority(10);
-    assertEquals(5, query.list().size());
+    assertEquals(6, query.list().size());
 
     query = taskService.createTaskQuery().taskMaxPriority(10);
     assertEquals(9, query.list().size());
@@ -504,10 +508,10 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
     assertEquals(0, query.count());
 
     query = taskService.createTaskQuery().or().taskId("invalid").taskMinPriority(50);
-    assertEquals(3, query.list().size());
+    assertEquals(4, query.list().size());
 
     query = taskService.createTaskQuery().or().taskId("invalid").taskMinPriority(10);
-    assertEquals(5, query.list().size());
+    assertEquals(6, query.list().size());
 
     query = taskService.createTaskQuery().or().taskId("invalid").taskMaxPriority(10);
     assertEquals(9, query.list().size());
@@ -557,7 +561,7 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
     assertEquals(0, query.list().size());
     assertNull(query.singleResult());
   }
-  
+
   public void testQueryByAssigneeIds() {
 	    TaskQuery query = taskService.createTaskQuery().taskAssigneeIds(Arrays.asList(GONZO, KERMIT));
 	    assertEquals(1, query.count());
@@ -746,9 +750,15 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
       // OK
     }
 
-    query = taskService.createTaskQuery().taskCandidateUser(FOZZIE,FOZZIESGROUPS);
+    query = taskService.createTaskQuery().taskCandidateUser(FOZZIE, FOZZIESGROUPS);
     assertEquals(3, query.count());
     assertEquals(3, query.list().size());
+
+    // Include assigned test
+    query = taskService.createTaskQuery().taskCandidateUser(FOZZIE, FOZZIESGROUPS).taskIncludeAssigned();
+    assertEquals(4, query.count());
+    assertEquals(4, query.list().size());
+
     try {
       query.singleResult();
       fail("expected exception");
@@ -806,7 +816,28 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
       // OK
     }
 
+    // test including assigned tasks
+    query = taskService.createTaskQuery().taskCandidateGroup("management").taskIncludeAssigned();
+    assertEquals(4, query.count());
+    assertEquals(4, query.list().size());
+
+    // accountancy group is candidate for 4 tasks, one of them is already assigned
+    query = taskService.createTaskQuery().taskCandidateGroup("accountancy");
+    assertEquals(3, query.count());
+    assertEquals(3, query.list().size());
+
+    // test including assigned tasks
+    query = taskService.createTaskQuery().taskCandidateGroup("accountancy").taskIncludeAssigned();
+    assertEquals(4, query.count());
+    assertEquals(4, query.list().size());
+
+    // sales group is candidate for no tasks
     query = taskService.createTaskQuery().taskCandidateGroup("sales");
+    assertEquals(0, query.count());
+    assertEquals(0, query.list().size());
+
+    // test including assigned tasks
+    query = taskService.createTaskQuery().taskCandidateGroup("sales").taskIncludeAssigned();
     assertEquals(0, query.count());
     assertEquals(0, query.list().size());
   }
@@ -845,8 +876,13 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
     assertEquals(11, tasks.size());
 
     query = taskService.createTaskQuery().taskCandidateOrAssigned(FOZZIE,FOZZIESGROUPS);
-    assertEquals(3, query.count());
-    assertEquals(3, query.list().size());
+    assertEquals(4, query.count());
+    assertEquals(4, query.list().size());
+
+    // Test with assigned (Rowlf is in the same group as fozzie)
+    query = taskService.createTaskQuery().taskCandidateOrAssigned(ROWLF,ROWLFSGROUPS).taskIncludeAssigned();
+    assertEquals(4, query.count());
+    assertEquals(4, query.list().size());
 
     // create a new task that no identity link and assignee to kermit
     Task task = taskService.newTask();
@@ -893,8 +929,8 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
     assertEquals(11, tasks.size());
 
     query = taskService.createTaskQuery().taskCandidateOrAssigned(FOZZIE);
-    assertEquals(3, query.count());
-    assertEquals(3, query.list().size());
+    assertEquals(4, query.count());
+    assertEquals(4, query.list().size());
 
     // create a new task that no identity link and assignee to kermit
     Task task = taskService.newTask();
@@ -985,8 +1021,8 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
     assertEquals(11, tasks.size());
 
     query = taskService.createTaskQuery().or().taskId("invalid").taskCandidateOrAssigned(FOZZIE,FOZZIESGROUPS);
-    assertEquals(3, query.count());
-    assertEquals(3, query.list().size());
+    assertEquals(4, query.count());
+    assertEquals(4, query.list().size());
 
     // create a new task that no identity link and assignee to kermit
     Task task = taskService.newTask();
@@ -1031,22 +1067,27 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
     TaskQuery query = taskService.createTaskQuery().taskCandidateGroupIn(groups);
     assertEquals(5, query.count());
     assertEquals(5, query.list().size());
-    
+
     try {
       query.singleResult();
       fail("expected exception");
     } catch (ActivitiException e) {
       // OK
     }
-    
+
+    // test including assigned tasks
+    query = taskService.createTaskQuery().taskCandidateGroupIn(groups).taskIncludeAssigned();
+    assertEquals(6, query.count());
+    assertEquals(6, query.list().size());
+
     query = taskService.createTaskQuery().taskCandidateUser(KERMIT,groups);
     assertEquals(11, query.count());
     assertEquals(11, query.list().size());
-    
+
     query = taskService.createTaskQuery().taskCandidateUser(KERMIT,Arrays.asList("unexisting"));
     assertEquals(6, query.count());
     assertEquals(6, query.list().size());
-    
+
     query = taskService.createTaskQuery().taskCandidateUser("unexisting",Arrays.asList("unexisting"));
     assertEquals(0, query.count());
     assertEquals(0, query.list().size());
@@ -1057,6 +1098,11 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
     query = taskService.createTaskQuery().taskCandidateGroupIn(groups);
     assertEquals(5, query.count());
     assertEquals(5, query.list().size());
+
+    // test including assigned tasks
+    query = taskService.createTaskQuery().taskCandidateGroupIn(groups).taskIncludeAssigned();
+    assertEquals(6, query.count());
+    assertEquals(6, query.list().size());
   }
 
   public void testQueryByCandidateGroupInOr() {
@@ -1064,31 +1110,31 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
     TaskQuery query = taskService.createTaskQuery().or().taskId("invalid").taskCandidateGroupIn(groups);
     assertEquals(5, query.count());
     assertEquals(5, query.list().size());
-    
+
     try {
       query.singleResult();
       fail("expected exception");
     } catch (ActivitiException e) {
       // OK
     }
-    
+
     query = taskService.createTaskQuery().or().taskCandidateUser(KERMIT,KERMITSGROUPS).taskCandidateGroupIn(groups).endOr();
     assertEquals(11, query.count());
     assertEquals(11, query.list().size());
-    
+
     query = taskService.createTaskQuery().or().taskCandidateUser(KERMIT,KERMITSGROUPS).taskCandidateGroup("unexisting").endOr();
     assertEquals(6, query.count());
     assertEquals(6, query.list().size());
-    
+
     query = taskService.createTaskQuery().or().taskCandidateUser("unexisting",null).taskCandidateGroup("unexisting").endOr();
     assertEquals(0, query.count());
     assertEquals(0, query.list().size());
-    
+
     query = taskService.createTaskQuery().or().taskCandidateUser(KERMIT,KERMITSGROUPS).taskCandidateGroupIn(groups).endOr()
         .or().taskCandidateUser(GONZO,GONZOSGROUPS).taskCandidateGroupIn(groups);
     assertEquals(5, query.count());
     assertEquals(5, query.list().size());
-    
+
     // Unexisting groups or groups that don't have candidate tasks shouldn't influence other results
     groups = Arrays.asList("management", "accountancy", "sales", "unexising");
     query = taskService.createTaskQuery().or().taskId("invalid").taskCandidateGroupIn(groups);
@@ -1163,8 +1209,8 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
 
   public void testQueryByDelegationState() {
     TaskQuery query = taskService.createTaskQuery().taskDelegationState(null);
-    assertEquals(12, query.count());
-    assertEquals(12, query.list().size());
+    assertEquals(13, query.count());
+    assertEquals(13, query.list().size());
     query = taskService.createTaskQuery().taskDelegationState(DelegationState.PENDING);
     assertEquals(0, query.count());
     assertEquals(0, query.list().size());
@@ -1176,8 +1222,8 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
     taskService.delegateTask(taskId, KERMIT);
 
     query = taskService.createTaskQuery().taskDelegationState(null);
-    assertEquals(11, query.count());
-    assertEquals(11, query.list().size());
+    assertEquals(12, query.count());
+    assertEquals(12, query.list().size());
     query = taskService.createTaskQuery().taskDelegationState(DelegationState.PENDING);
     assertEquals(1, query.count());
     assertEquals(1, query.list().size());
@@ -1188,8 +1234,8 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
     taskService.resolveTask(taskId);
 
     query = taskService.createTaskQuery().taskDelegationState(null);
-    assertEquals(11, query.count());
-    assertEquals(11, query.list().size());
+    assertEquals(12, query.count());
+    assertEquals(12, query.list().size());
     query = taskService.createTaskQuery().taskDelegationState(DelegationState.PENDING);
     assertEquals(0, query.count());
     assertEquals(0, query.list().size());
@@ -1200,8 +1246,8 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
 
   public void testQueryByDelegationStateOr() {
     TaskQuery query = taskService.createTaskQuery().or().taskId("invalid").taskDelegationState(null);
-    assertEquals(12, query.count());
-    assertEquals(12, query.list().size());
+    assertEquals(13, query.count());
+    assertEquals(13, query.list().size());
     query = taskService.createTaskQuery().or().taskId("invalid").taskDelegationState(DelegationState.PENDING);
     assertEquals(0, query.count());
     assertEquals(0, query.list().size());
@@ -1213,8 +1259,8 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
     taskService.delegateTask(taskId, KERMIT);
 
     query = taskService.createTaskQuery().or().taskId("invalid").taskDelegationState(null);
-    assertEquals(11, query.count());
-    assertEquals(11, query.list().size());
+    assertEquals(12, query.count());
+    assertEquals(12, query.list().size());
     query = taskService.createTaskQuery().or().taskId("invalid").taskDelegationState(DelegationState.PENDING);
     assertEquals(1, query.count());
     assertEquals(1, query.list().size());
@@ -1225,8 +1271,8 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
     taskService.resolveTask(taskId);
 
     query = taskService.createTaskQuery().or().taskId("invalid").taskDelegationState(null);
-    assertEquals(11, query.count());
-    assertEquals(11, query.list().size());
+    assertEquals(12, query.count());
+    assertEquals(12, query.list().size());
     query = taskService.createTaskQuery().or().taskId("invalid").taskDelegationState(DelegationState.PENDING);
     assertEquals(0, query.count());
     assertEquals(0, query.list().size());
@@ -1296,10 +1342,10 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
     Date after = sdf.parse("03/03/2003 03:03:03.000");
 
     TaskQuery query = taskService.createTaskQuery().taskCreatedAfter(after);
-    assertEquals(3, query.count());
-    assertEquals(3, query.list().size());
+    assertEquals(4, query.count());
+    assertEquals(4, query.list().size());
 
-    after = sdf.parse("05/05/2005 05:05:05.000");
+    after = sdf.parse("06/06/2006 06:06:06.000");
     query = taskService.createTaskQuery().taskCreatedAfter(after);
     assertEquals(0, query.count());
     assertEquals(0, query.list().size());
@@ -1312,10 +1358,10 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
     Date after = sdf.parse("03/03/2003 03:03:03.000");
 
     TaskQuery query = taskService.createTaskQuery().or().taskId("invalid").taskCreatedAfter(after);
-    assertEquals(3, query.count());
-    assertEquals(3, query.list().size());
+    assertEquals(4, query.count());
+    assertEquals(4, query.list().size());
 
-    after = sdf.parse("05/05/2005 05:05:05.000");
+    after = sdf.parse("06/06/2006 06:06:06.000");
     query = taskService.createTaskQuery().or().taskId("invalid").taskCreatedAfter(after);
     assertEquals(0, query.count());
     assertEquals(0, query.list().size());
@@ -1823,19 +1869,19 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
     assertEquals(1, taskService.createTaskQuery().processVariableValueLike("mixed", "A%").count());
     assertEquals(0, taskService.createTaskQuery().processVariableValueLike("mixed", "a%").count());
   }
-  
+
   @Deployment(resources="org/activiti/engine/test/api/task/TaskQueryTest.testProcessDefinition.bpmn20.xml")
   public void testProcessVariableValueLikeIgnoreCase() throws Exception {
     Map<String, Object> variables = new HashMap<String, Object>();
     variables.put("mixed", "AzerTY");
-    
+
     runtimeService.startProcessInstanceByKey("oneTaskProcess", variables);
-    
+
     assertEquals(1, taskService.createTaskQuery().processVariableValueLikeIgnoreCase("mixed", "azer%").count());
     assertEquals(1, taskService.createTaskQuery().processVariableValueLikeIgnoreCase("mixed", "a%").count());
     assertEquals(0, taskService.createTaskQuery().processVariableValueLikeIgnoreCase("mixed", "Azz%").count());
   }
-  
+
   @Deployment(resources="org/activiti/engine/test/api/task/TaskQueryTest.testProcessDefinition.bpmn20.xml")
   public void testProcessVariableValueGreaterThan() throws Exception {
     Map<String, Object> variables = new HashMap<String, Object>();
@@ -1900,7 +1946,7 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
     List<Task> tasks = taskService.createTaskQuery().or().taskId("invalid").processDefinitionId(processInstance.getProcessDefinitionId()).list();
     assertEquals(1, tasks.size());
     assertEquals(processInstance.getId(), tasks.get(0).getProcessInstanceId());
-    
+
     tasks = taskService.createTaskQuery()
         .or()
           .taskId("invalid")
@@ -1913,7 +1959,7 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
         .list();
     assertEquals(1, tasks.size());
     assertEquals(processInstance.getId(), tasks.get(0).getProcessInstanceId());
-    
+
     assertEquals(0, taskService.createTaskQuery()
         .or()
         .taskId("invalid")
@@ -1940,45 +1986,45 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
     assertEquals(processInstance.getId(), tasks.get(0).getProcessInstanceId());
 
     assertEquals(0, taskService.createTaskQuery().or().taskId("invalid").processDefinitionKey("unexisting").count());
-    
+
     assertEquals(1, taskService.createTaskQuery().or().taskId(taskIds.get(0)).processDefinitionKey("unexisting").endOr().count());
   }
-  
+
   @Deployment(resources={"org/activiti/engine/test/api/task/TaskQueryTest.testProcessDefinition.bpmn20.xml"})
   public void testProcessDefinitionKeyIn() throws Exception {
     runtimeService.startProcessInstanceByKey("oneTaskProcess");
     List<String> includeIds = new ArrayList<String>();
-    
-    assertEquals(13, taskService.createTaskQuery().processDefinitionKeyIn(includeIds).count());
+
+    assertEquals(14, taskService.createTaskQuery().processDefinitionKeyIn(includeIds).count());
     includeIds.add("unexisting");
     assertEquals(0, taskService.createTaskQuery().processDefinitionKeyIn(includeIds).count());
     includeIds.add("oneTaskProcess");
     assertEquals(1, taskService.createTaskQuery().processDefinitionKeyIn(includeIds).count());
   }
-  
+
   @Deployment(resources={"org/activiti/engine/test/api/task/TaskQueryTest.testProcessDefinition.bpmn20.xml"})
   public void testProcessDefinitionKeyInOr() throws Exception {
     runtimeService.startProcessInstanceByKey("oneTaskProcess");
-    
+
     List<String> includeIds = new ArrayList<String>();
     assertEquals(0, taskService.createTaskQuery()
         .or().taskId("invalid")
         .processDefinitionKeyIn(includeIds)
         .count());
-    
+
     includeIds.add("unexisting");
     assertEquals(0, taskService.createTaskQuery()
         .or().taskId("invalid")
         .processDefinitionKeyIn(includeIds)
         .count());
-    
+
     includeIds.add("oneTaskProcess");
     assertEquals(1, taskService.createTaskQuery()
         .or().taskId("invalid")
         .processDefinitionKeyIn(includeIds)
         .count());
   }
-  
+
   @Deployment(resources={"org/activiti/engine/test/api/task/TaskQueryTest.testProcessDefinition.bpmn20.xml"})
   public void testProcessDefinitionName() throws Exception {
     ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess");
@@ -2024,7 +2070,7 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
     assertNotNull(task);
     assertEquals("theTask", task.getTaskDefinitionKey());
     assertEquals(processInstance.getId(), task.getProcessInstanceId());
-    
+
     task = taskService.createTaskQuery()
         .or()
           .taskId("invalid")
@@ -2372,25 +2418,26 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
   }
 
   public void testQuerySorting() {
-    assertEquals(12, taskService.createTaskQuery().orderByTaskId().asc().list().size());
-    assertEquals(12, taskService.createTaskQuery().orderByTaskName().asc().list().size());
-    assertEquals(12, taskService.createTaskQuery().orderByTaskPriority().asc().list().size());
-    assertEquals(12, taskService.createTaskQuery().orderByTaskAssignee().asc().list().size());
-    assertEquals(12, taskService.createTaskQuery().orderByTaskDescription().asc().list().size());
-    assertEquals(12, taskService.createTaskQuery().orderByProcessInstanceId().asc().list().size());
-    assertEquals(12, taskService.createTaskQuery().orderByExecutionId().asc().list().size());
-    assertEquals(12, taskService.createTaskQuery().orderByTaskCreateTime().asc().list().size());
-    assertEquals(12, taskService.createTaskQuery().orderByTaskDueDate().asc().list().size());
+    int expectedResult = 13;
+	assertEquals(expectedResult, taskService.createTaskQuery().orderByTaskId().asc().list().size());
+    assertEquals(expectedResult, taskService.createTaskQuery().orderByTaskName().asc().list().size());
+    assertEquals(expectedResult, taskService.createTaskQuery().orderByTaskPriority().asc().list().size());
+    assertEquals(expectedResult, taskService.createTaskQuery().orderByTaskAssignee().asc().list().size());
+    assertEquals(expectedResult, taskService.createTaskQuery().orderByTaskDescription().asc().list().size());
+    assertEquals(expectedResult, taskService.createTaskQuery().orderByProcessInstanceId().asc().list().size());
+    assertEquals(expectedResult, taskService.createTaskQuery().orderByExecutionId().asc().list().size());
+    assertEquals(expectedResult, taskService.createTaskQuery().orderByTaskCreateTime().asc().list().size());
+    assertEquals(expectedResult, taskService.createTaskQuery().orderByTaskDueDate().asc().list().size());
 
-    assertEquals(12, taskService.createTaskQuery().orderByTaskId().desc().list().size());
-    assertEquals(12, taskService.createTaskQuery().orderByTaskName().desc().list().size());
-    assertEquals(12, taskService.createTaskQuery().orderByTaskPriority().desc().list().size());
-    assertEquals(12, taskService.createTaskQuery().orderByTaskAssignee().desc().list().size());
-    assertEquals(12, taskService.createTaskQuery().orderByTaskDescription().desc().list().size());
-    assertEquals(12, taskService.createTaskQuery().orderByProcessInstanceId().desc().list().size());
-    assertEquals(12, taskService.createTaskQuery().orderByExecutionId().desc().list().size());
-    assertEquals(12, taskService.createTaskQuery().orderByTaskCreateTime().desc().list().size());
-    assertEquals(12, taskService.createTaskQuery().orderByTaskDueDate().desc().list().size());
+    assertEquals(expectedResult, taskService.createTaskQuery().orderByTaskId().desc().list().size());
+    assertEquals(expectedResult, taskService.createTaskQuery().orderByTaskName().desc().list().size());
+    assertEquals(expectedResult, taskService.createTaskQuery().orderByTaskPriority().desc().list().size());
+    assertEquals(expectedResult, taskService.createTaskQuery().orderByTaskAssignee().desc().list().size());
+    assertEquals(expectedResult, taskService.createTaskQuery().orderByTaskDescription().desc().list().size());
+    assertEquals(expectedResult, taskService.createTaskQuery().orderByProcessInstanceId().desc().list().size());
+    assertEquals(expectedResult, taskService.createTaskQuery().orderByExecutionId().desc().list().size());
+    assertEquals(expectedResult, taskService.createTaskQuery().orderByTaskCreateTime().desc().list().size());
+    assertEquals(expectedResult, taskService.createTaskQuery().orderByTaskDueDate().desc().list().size());
 
     assertEquals(6, taskService.createTaskQuery().orderByTaskId().taskName("testTask").asc().list().size());
     assertEquals(6, taskService.createTaskQuery().orderByTaskId().taskName("testTask").desc().list().size());
@@ -2400,16 +2447,16 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
     assertEquals("ACT_RU_TASK", managementService.getTableName(Task.class));
     assertEquals("ACT_RU_TASK", managementService.getTableName(TaskEntity.class));
     assertEquals(5, taskService.createNativeTaskQuery().sql("SELECT * FROM " + managementService.getTableName(Task.class)).listPage(0, 5).size());
-    assertEquals(2, taskService.createNativeTaskQuery().sql("SELECT * FROM " + managementService.getTableName(Task.class)).listPage(10, 12).size());
+    assertEquals(3, taskService.createNativeTaskQuery().sql("SELECT * FROM " + managementService.getTableName(Task.class)).listPage(10, 12).size());
   }
 
   public void testNativeQuery() {
     assertEquals("ACT_RU_TASK", managementService.getTableName(Task.class));
     assertEquals("ACT_RU_TASK", managementService.getTableName(TaskEntity.class));
-    assertEquals(12, taskService.createNativeTaskQuery().sql("SELECT * FROM " + managementService.getTableName(Task.class)).list().size());
-    assertEquals(12, taskService.createNativeTaskQuery().sql("SELECT count(*) FROM " + managementService.getTableName(Task.class)).count());
+    assertEquals(13, taskService.createNativeTaskQuery().sql("SELECT * FROM " + managementService.getTableName(Task.class)).list().size());
+    assertEquals(13, taskService.createNativeTaskQuery().sql("SELECT count(*) FROM " + managementService.getTableName(Task.class)).count());
 
-    assertEquals(144, taskService.createNativeTaskQuery().sql("SELECT count(*) FROM ACT_RU_TASK T1, ACT_RU_TASK T2").count());
+    assertEquals(169, taskService.createNativeTaskQuery().sql("SELECT count(*) FROM ACT_RU_TASK T1, ACT_RU_TASK T2").count());
 
     // join task and variable instances
     assertEquals(
@@ -2423,7 +2470,7 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
     assertEquals("gonzoTask", tasks.get(0).getName());
 
     // select with distinct
-    assertEquals(12, taskService.createNativeTaskQuery().sql("SELECT DISTINCT T1.* FROM ACT_RU_TASK T1").list().size());
+    assertEquals(13, taskService.createNativeTaskQuery().sql("SELECT DISTINCT T1.* FROM ACT_RU_TASK T1").list().size());
 
     assertEquals(1, taskService.createNativeTaskQuery().sql("SELECT count(*) FROM " + managementService.getTableName(Task.class) + " T WHERE T.NAME_ = 'gonzoTask'").count());
     assertEquals(1, taskService.createNativeTaskQuery().sql("SELECT * FROM " + managementService.getTableName(Task.class) + " T WHERE T.NAME_ = 'gonzoTask'").list().size());
@@ -2548,20 +2595,20 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
   public void testQueryByTaskNameLikeIgnoreCase() {
 
     // Runtime
-    assertEquals(12, taskService.createTaskQuery().taskNameLikeIgnoreCase("%task%").count());
-    assertEquals(12, taskService.createTaskQuery().taskNameLikeIgnoreCase("%Task%").count());
-    assertEquals(12, taskService.createTaskQuery().taskNameLikeIgnoreCase("%TASK%").count());
-    assertEquals(12, taskService.createTaskQuery().taskNameLikeIgnoreCase("%TasK%").count());
+    assertEquals(13, taskService.createTaskQuery().taskNameLikeIgnoreCase("%task%").count());
+    assertEquals(13, taskService.createTaskQuery().taskNameLikeIgnoreCase("%Task%").count());
+    assertEquals(13, taskService.createTaskQuery().taskNameLikeIgnoreCase("%TASK%").count());
+    assertEquals(13, taskService.createTaskQuery().taskNameLikeIgnoreCase("%TasK%").count());
     assertEquals(1, taskService.createTaskQuery().taskNameLikeIgnoreCase("gonzo%").count());
     assertEquals(1, taskService.createTaskQuery().taskNameLikeIgnoreCase("%Gonzo%").count());
     assertEquals(0, taskService.createTaskQuery().taskNameLikeIgnoreCase("Task%").count());
 
     if (processEngineConfiguration.getHistoryLevel().isAtLeast(HistoryLevel.AUDIT)) {
       // History
-      assertEquals(12, historyService.createHistoricTaskInstanceQuery().taskNameLikeIgnoreCase("%task%").count());
-      assertEquals(12, historyService.createHistoricTaskInstanceQuery().taskNameLikeIgnoreCase("%Task%").count());
-      assertEquals(12, historyService.createHistoricTaskInstanceQuery().taskNameLikeIgnoreCase("%TASK%").count());
-      assertEquals(12, historyService.createHistoricTaskInstanceQuery().taskNameLikeIgnoreCase("%TasK%").count());
+      assertEquals(13, historyService.createHistoricTaskInstanceQuery().taskNameLikeIgnoreCase("%task%").count());
+      assertEquals(13, historyService.createHistoricTaskInstanceQuery().taskNameLikeIgnoreCase("%Task%").count());
+      assertEquals(13, historyService.createHistoricTaskInstanceQuery().taskNameLikeIgnoreCase("%TASK%").count());
+      assertEquals(13, historyService.createHistoricTaskInstanceQuery().taskNameLikeIgnoreCase("%TasK%").count());
       assertEquals(1, historyService.createHistoricTaskInstanceQuery().taskNameLikeIgnoreCase("gonzo%").count());
       assertEquals(1, historyService.createHistoricTaskInstanceQuery().taskNameLikeIgnoreCase("%Gonzo%").count());
       assertEquals(0, historyService.createHistoricTaskInstanceQuery().taskNameLikeIgnoreCase("Task%").count());
@@ -2571,13 +2618,13 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
   public void testQueryByTaskNameOrDescriptionLikeIgnoreCase() {
 
     // Runtime
-    assertEquals(12, taskService.createTaskQuery().or().taskNameLikeIgnoreCase("%task%").taskDescriptionLikeIgnoreCase("%task%").endOr().count());
+    assertEquals(13, taskService.createTaskQuery().or().taskNameLikeIgnoreCase("%task%").taskDescriptionLikeIgnoreCase("%task%").endOr().count());
 
     assertEquals(9, taskService.createTaskQuery().or().taskNameLikeIgnoreCase("ACCOUN%").taskDescriptionLikeIgnoreCase("%ESCR%").endOr().count());
 
     if (processEngineConfiguration.getHistoryLevel().isAtLeast(HistoryLevel.AUDIT)) {
       // History
-      assertEquals(12, historyService.createHistoricTaskInstanceQuery().or().taskNameLikeIgnoreCase("%task%").taskDescriptionLikeIgnoreCase("%task%").endOr().count());
+      assertEquals(13, historyService.createHistoricTaskInstanceQuery().or().taskNameLikeIgnoreCase("%task%").taskDescriptionLikeIgnoreCase("%task%").endOr().count());
 
       assertEquals(9, historyService.createHistoricTaskInstanceQuery().or().taskNameLikeIgnoreCase("ACCOUN%").taskDescriptionLikeIgnoreCase("%ESCR%").endOr().count());
     }
@@ -2702,44 +2749,44 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
   public void testCombinationOfOrAndLikeIgnoreCase() {
 
     // Runtime
-    assertEquals(12, taskService.createTaskQuery().or().taskNameLikeIgnoreCase("%task%").taskDescriptionLikeIgnoreCase("%desc%").taskAssigneeLikeIgnoreCase("Gonz%").taskOwnerLike("G%").endOr()
+    assertEquals(13, taskService.createTaskQuery().or().taskNameLikeIgnoreCase("%task%").taskDescriptionLikeIgnoreCase("%desc%").taskAssigneeLikeIgnoreCase("Gonz%").taskOwnerLike("G%").endOr()
         .count());
 
     if (processEngineConfiguration.getHistoryLevel().isAtLeast(HistoryLevel.AUDIT)) {
       // History
-      assertEquals(12, historyService.createHistoricTaskInstanceQuery().or().taskNameLikeIgnoreCase("%task%").taskDescriptionLikeIgnoreCase("%desc%").taskAssigneeLikeIgnoreCase("Gonz%")
+      assertEquals(13, historyService.createHistoricTaskInstanceQuery().or().taskNameLikeIgnoreCase("%task%").taskDescriptionLikeIgnoreCase("%desc%").taskAssigneeLikeIgnoreCase("Gonz%")
           .taskOwnerLike("G%").endOr().count());
     }
   }
 
   // Test for https://jira.codehaus.org/browse/ACT-2103
   public void testTaskLocalAndProcessInstanceVariableEqualsInOr() {
-  	
+
   	deployOneTaskTestProcess();
   	for (int i=0; i<10; i++) {
   		runtimeService.startProcessInstanceByKey("oneTaskProcess");
   	}
-  	
+
   	List<Task> allTasks = taskService.createTaskQuery().processDefinitionKey("oneTaskProcess").list();
   	assertEquals(10, allTasks.size());
-  	
+
   	// Give two tasks a task local variable
   	taskService.setVariableLocal(allTasks.get(0).getId(), "localVar", "someValue");
   	taskService.setVariableLocal(allTasks.get(1).getId(), "localVar", "someValue");
-  	
+
   	// Give three tasks a proc inst var
   	runtimeService.setVariable(allTasks.get(2).getProcessInstanceId(), "var", "theValue");
   	runtimeService.setVariable(allTasks.get(3).getProcessInstanceId(), "var", "theValue");
   	runtimeService.setVariable(allTasks.get(4).getProcessInstanceId(), "var", "theValue");
-  	
+
   	assertEquals(2, taskService.createTaskQuery().taskVariableValueEquals("localVar", "someValue").list().size());
   	assertEquals(3, taskService.createTaskQuery().processVariableValueEquals("var", "theValue").list().size());
-  	
+
   	assertEquals(5, taskService.createTaskQuery().or()
   			.taskVariableValueEquals("localVar", "someValue")
   			.processVariableValueEquals("var", "theValue")
   			.endOr().list().size());
-  	
+
   	assertEquals(5, taskService.createTaskQuery()
   	    .or()
           .taskVariableValueEquals("localVar", "someValue")
@@ -2752,11 +2799,11 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
         .list()
         .size());
   }
-  
+
   @Deployment(resources={"org/activiti/engine/test/api/task/TaskQueryTest.testProcessDefinition.bpmn20.xml"})
   public void testLocalizeTasks() throws Exception {
     ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess");
-    
+
     List<Task> tasks = taskService.createTaskQuery().processDefinitionId(processInstance.getProcessDefinitionId()).list();
     assertEquals(1, tasks.size());
     assertEquals("my task", tasks.get(0).getName());
@@ -2772,7 +2819,7 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
     dynamicBpmnService.changeLocalizationName("en-GB", "theTask", "My 'en-GB' localized name", infoNode);
     dynamicBpmnService.changeLocalizationDescription("en-GB", "theTask", "My 'en-GB' localized description", infoNode);
     dynamicBpmnService.saveProcessDefinitionInfo(processInstance.getProcessDefinitionId(), infoNode);
-    
+
     dynamicBpmnService.changeLocalizationName("en", "theTask", "My 'en' localized name", infoNode);
     dynamicBpmnService.changeLocalizationDescription("en", "theTask", "My 'en' localized description", infoNode);
     dynamicBpmnService.saveProcessDefinitionInfo(processInstance.getProcessDefinitionId(), infoNode);
@@ -2791,7 +2838,7 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
     assertEquals(1, tasks.size());
     assertEquals("My 'en-GB' localized name", tasks.get(0).getName());
     assertEquals("My 'en-GB' localized description", tasks.get(0).getDescription());
-    
+
     tasks = taskService.createTaskQuery().processDefinitionId(processInstance.getProcessDefinitionId()).listPage(0, 10);
     assertEquals(1, tasks.size());
     assertEquals("my task", tasks.get(0).getName());
@@ -2801,12 +2848,12 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
     assertEquals(1, tasks.size());
     assertEquals("Mi Tarea", tasks.get(0).getName());
     assertEquals("Mi Tarea Descripción", tasks.get(0).getDescription());
-    
+
     tasks = taskService.createTaskQuery().processDefinitionId(processInstance.getProcessDefinitionId()).locale("en-GB").listPage(0, 10);
     assertEquals(1, tasks.size());
     assertEquals("My 'en-GB' localized name", tasks.get(0).getName());
     assertEquals("My 'en-GB' localized description", tasks.get(0).getDescription());
-    
+
     Task task = taskService.createTaskQuery().processDefinitionId(processInstance.getProcessDefinitionId()).singleResult();
     assertEquals("my task", task.getName());
     assertEquals("My Task Description", task.getDescription());
@@ -2814,27 +2861,32 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
     task = taskService.createTaskQuery().processDefinitionId(processInstance.getProcessDefinitionId()).locale("es").singleResult();
     assertEquals("Mi Tarea", task.getName());
     assertEquals("Mi Tarea Descripción", task.getDescription());
-    
+
     task = taskService.createTaskQuery().processDefinitionId(processInstance.getProcessDefinitionId()).locale("en-GB").singleResult();
     assertEquals("My 'en-GB' localized name", task.getName());
     assertEquals("My 'en-GB' localized description", task.getDescription());
-    
+
     task = taskService.createTaskQuery().processDefinitionId(processInstance.getProcessDefinitionId()).singleResult();
     assertEquals("my task", task.getName());
     assertEquals("My Task Description", task.getDescription());
-    
+
     task = taskService.createTaskQuery().processDefinitionId(processInstance.getProcessDefinitionId()).locale("en").singleResult();
     assertEquals("My 'en' localized name", task.getName());
     assertEquals("My 'en' localized description", task.getDescription());
-    
+
     task = taskService.createTaskQuery().processDefinitionId(processInstance.getProcessDefinitionId()).locale("en-AU").withLocalizationFallback().singleResult();
     assertEquals("My 'en' localized name", task.getName());
     assertEquals("My 'en' localized description", task.getDescription());
   }
 
   /**
-   * Generates some test tasks. - 6 tasks where kermit is a candidate - 1 tasks where gonzo is assignee - 2 tasks assigned to management group - 2 tasks assigned to accountancy group - 1 task assigned
-   * to both the management and accountancy group
+   * Generates some test tasks.
+   * - 6 tasks where kermit is a candidate
+   * - 1 tasks where gonzo is assignee
+   * - 2 tasks assigned to management group
+   * - 2 tasks assigned to accountancy group
+   * - 1 task assigned to both the management and accountancy group
+   * - 1 task assigned to fozzie and to both the management and accountancy group
    */
   private List<String> generateTestTasks() throws Exception {
     List<String> ids = new ArrayList<String>();
@@ -2894,6 +2946,16 @@ public class TaskQueryTest extends PluggableActivitiTestCase {
     taskService.addCandidateGroup(task.getId(), "management");
     taskService.addCandidateGroup(task.getId(), "accountancy");
     ids.add(task.getId());
+
+	processEngineConfiguration.getClock().setCurrentTime( sdf.parse( "06/06/2006 06:06:06.000" ) );
+	// 1 task assigned to management and accountancy group already assigned
+	task = taskService.newTask();
+	task.setName( "managementAndAccountancyTaskAlreadyAssigned" );
+	taskService.saveTask( task );
+	taskService.setAssignee( task.getId(), "fozzie" );
+	taskService.addCandidateGroup( task.getId(), "management" );
+	taskService.addCandidateGroup( task.getId(), "accountancy" );
+	ids.add( task.getId() );
 
     return ids;
   }
